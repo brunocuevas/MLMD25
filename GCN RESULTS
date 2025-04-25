@@ -162,7 +162,7 @@ CHANGE selection_sring="name CA N C" (2 FILES)
 13	0.313353	0.955000	0.354632
 14	0.352472	0.973333	0.333593
 
-CHANGE: full simulation (6 FILES)
+CHANGE full simulation (6 FILES)
 	training_loss	test_accuracy	test_loss
 0	0.681583	0.508889	0.690520
 1	0.705233	0.491111	0.691837
@@ -351,7 +351,7 @@ CHANGE full simulations, good results (6 FILES)
 13	0.313262	0.871111	0.438460
 14	0.313262	0.913333	0.400578
 
-CHANGE: BEST PARAMETERS WITH BACKBONE ONLY AND ALL SIMULATIONS (6 FILES)
+CHANGE BEST PARAMETERS WITH BACKBONE ONLY AND ALL SIMULATIONS (6 FILES)
     training_loss	test_accuracy	test_loss
 0	0.680344	0.504444	0.693183
 1	0.699835	0.495556	0.693355
@@ -549,7 +549,7 @@ Epoch  9 | Accuracy 0.9300
 Epoch 10 | Accuracy 0.9422
 ================================
 
--> FINAL ONE
+-> FINAL ONE MD2 BACKBONE 20 EPOCHS (LESS COMPUTING TIME)
 Training for radius 3.0:
   5%|█████▊                                                                                                             | 1/20 [00:21<06:56, 21.93s/it]
 Epoch  1 | Accuracy 0.5044
@@ -719,7 +719,7 @@ Epoch 19 | Accuracy 0.9744
 Epoch 20 | Accuracy 0.9667
 ================================
 
--> 20 EPOCHS AND MD2 BACKBONE (LESS COMPUTING TIME)
+-> 20 EPOCHS AND MD2 BACKBONE (NARROW THE R VALUES)
 Training for radius 4.0:
   5%|█████▊                                                                                                             | 1/20 [00:27<08:41, 27.46s/it]
 Epoch  1 | Accuracy 0.4956
