@@ -1,0 +1,194 @@
+class GCN(torch.nn.Module):
+    def __init__(self, radius):
+        super().__init__()
+        self.radius = radius
+        self.embed_res = Embedding(num_embeddings=23, embedding_dim=128)
+        self.embed_type = Embedding(num_embeddings=33, embedding_dim=128)
+        #
+        self.conv1_res = GCNConv(128, 64)
+        self.relu1_res = ReLU()
+        self.conv2_res = GCNConv(64, 32)
+        self.relu2_res = ReLU()
+        self.conv3_res = GCNConv(32, 16)
+        # 
+        self.conv1_type = GCNConv(128, 64)
+        self.relu1_type = ReLU()
+        self.conv2_type = GCNConv(64, 32)
+        self.relu2_type = ReLU()
+        self.conv3_type = GCNConv(32, 16)
+        #
+        self.pool_res = GlobalAttention(gate_nn=torch.nn.Sequential(Linear(16,1),ReLU(),Linear(1,1)))
+        self.pool_type = GlobalAttention(gate_nn=torch.nn.Sequential(Linear(16,1),ReLU(),Linear(1,1)))
+        # 
+        self.linear1 = Linear(32, 2)
+
+    def forward(self, data):
+        pos, res, type, batch = data.pos, data.res, data.types, data.batch
+        edge_index = radius_graph(pos, r=self.radius, batch=batch)
+        #
+        z_res = self.embed_res(res)
+        z_res = self.conv1_res(z_res, edge_index)
+        z_res = self.relu1_res(z_res)
+        z_res = self.conv2_res(z_res, edge_index)
+        z_res = self.relu2_res(z_res)
+        z_res = self.conv3_res(z_res, edge_index)
+        #
+        z_type = self.embed_type(type)
+        z_type = self.conv1_type(z_type, edge_index)
+        z_type = self.relu1_type(z_type)
+        z_type = self.conv2_type(z_type, edge_index)
+        z_type = self.relu2_type(z_type)
+        z_type = self.conv3_type(z_type, edge_index)
+        #
+        #z_res = scatter(z_res, data.batch, dim=0, reduce='mean')
+        #z_type = scatter(z_type, data.batch, dim=0, reduce='mean')
+        z_res = self.pool_res(z_res, data.batch)
+        z_type = self.pool_type(z_res, data.batch)
+        z = torch.cat([z_res, z_type], dim=1)
+        z = self.linear1(z)
+        #z = F.softmax(z, dim=1) #CrossEntropyLoss already does softmax at the end
+        return z
+        
+gcn = GCN(radius=5.0)
+loss = CrossEntropyLoss()
+optimizer = torch.optim.Adam(gcn.parameters(), lr=lr, weight_decay=5e-4)
+train_loader = DataLoader(train_trj, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_trj, batch_size=batch_size, shuffle=True)
+history = []
+for i in tqdm.tqdm(range(epochs)):
+    statistics = dict()
+    statistics['training_loss'] = 0.0
+    gcn.train()
+    for d in train_loader:
+        optimizer.zero_grad()
+        z = gcn(d)
+        l = loss(z, d.label)
+        l.backward()
+        optimizer.step()
+    statistics['training_loss'] += l.item()
+    gcn.eval()
+    with torch.no_grad():
+        statistics['test_accuracy'] = 0.0
+        statistics['test_loss'] = 0.0
+        for d in test_loader:
+            z = gcn(d)
+            l = loss(z, d.label)
+            a = ((z.argmax(1) == d.label).sum())
+            statistics['test_accuracy'] += a.item()
+            statistics['test_loss'] += l.item()
+                
+    statistics['test_accuracy'] /= len(test_trj)
+    statistics['test_loss'] /= ((len(test_trj) // batch_size) + 1)
+
+    print(f"Epoch {i+1:2d} | Accuracy {statistics['test_accuracy']:.4f}")
+    history.append(statistics)
+    
+/usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/deprecation.py:26: UserWarning: 'nn.glob.GlobalAttention' is deprecated, use 'nn.aggr.AttentionalAggregation' instead
+  warnings.warn(out)
+  0%|                                                                                                   | 0/20 [00:00<?, ?it/s]
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+Cell In[11], line 13
+     11 for d in train_loader:
+     12     optimizer.zero_grad()
+---> 13     z = gcn(d)
+     14     l = loss(z, d.label)
+     15     l.backward()
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch/nn/modules/module.py:1739, in Module._wrapped_call_impl(self, *args, **kwargs)
+   1737     return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+   1738 else:
+-> 1739     return self._call_impl(*args, **kwargs)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch/nn/modules/module.py:1750, in Module._call_impl(self, *args, **kwargs)
+   1745 # If we don't have any hooks, we want to skip the rest of the logic in
+   1746 # this function, and just call forward.
+   1747 if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+   1748         or _global_backward_pre_hooks or _global_backward_hooks
+   1749         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1750     return forward_call(*args, **kwargs)
+   1752 result = None
+   1753 called_always_called_hooks = set()
+
+Cell In[7], line 46, in GCN.forward(self, data)
+     42 #
+     43 #z_res = scatter(z_res, data.batch, dim=0, reduce='mean')
+     44 #z_type = scatter(z_type, data.batch, dim=0, reduce='mean')
+     45 z_res = self.pool_res(z_res, data.batch)
+---> 46 z_type = self.pool_type(z_res, data.batch)
+     47 z = torch.cat([z_res, z_type], dim=1)
+     48 z = self.linear1(z)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/nn/glob.py:16, in GlobalAttention.__call__(self, x, batch, size)
+     15 def __call__(self, x, batch=None, size=None):
+---> 16     return super().__call__(x, batch, dim_size=size)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/experimental.py:117, in disable_dynamic_shapes.<locals>.decorator.<locals>.wrapper(*args, **kwargs)
+    114 @functools.wraps(func)
+    115 def wrapper(*args: Any, **kwargs: Any) -> Any:
+    116     if not is_experimental_mode_enabled('disable_dynamic_shapes'):
+--> 117         return func(*args, **kwargs)
+    119     for required_arg in required_args:
+    120         index = required_args_pos[required_arg]
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/nn/aggr/base.py:139, in Aggregation.__call__(self, x, index, ptr, dim_size, dim, **kwargs)
+    135     if index.numel() > 0 and dim_size <= int(index.max()):
+    136         raise ValueError(f"Encountered invalid 'dim_size' (got "
+    137                          f"'{dim_size}' but expected "
+    138                          f">= '{int(index.max()) + 1}')")
+--> 139 raise e
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/nn/aggr/base.py:131, in Aggregation.__call__(self, x, index, ptr, dim_size, dim, **kwargs)
+    128     dim_size = int(index.max()) + 1 if index.numel() > 0 else 0
+    130 try:
+--> 131     return super().__call__(x, index=index, ptr=ptr, dim_size=dim_size,
+    132                             dim=dim, **kwargs)
+    133 except (IndexError, RuntimeError) as e:
+    134     if index is not None:
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch/nn/modules/module.py:1739, in Module._wrapped_call_impl(self, *args, **kwargs)
+   1737     return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+   1738 else:
+-> 1739     return self._call_impl(*args, **kwargs)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch/nn/modules/module.py:1750, in Module._call_impl(self, *args, **kwargs)
+   1745 # If we don't have any hooks, we want to skip the rest of the logic in
+   1746 # this function, and just call forward.
+   1747 if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+   1748         or _global_backward_pre_hooks or _global_backward_hooks
+   1749         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1750     return forward_call(*args, **kwargs)
+   1752 result = None
+   1753 called_always_called_hooks = set()
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/nn/aggr/attention.py:78, in AttentionalAggregation.forward(self, x, index, ptr, dim_size, dim)
+     75 elif self.nn is not None:
+     76     x = self.nn(x)
+---> 78 gate = softmax(gate, index, ptr, dim_size, dim)
+     79 return self.reduce(gate * x, index, ptr, dim_size, dim)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/utils/_softmax.py:75, in softmax(src, index, ptr, num_nodes, dim)
+     73 elif index is not None:
+     74     N = maybe_num_nodes(index, num_nodes)
+---> 75     src_max = scatter(src.detach(), index, dim, dim_size=N, reduce='max')
+     76     out = src - src_max.index_select(dim, index)
+     77     out = out.exp()
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/utils/_scatter.py:100, in scatter(src, index, dim, dim_size, reduce)
+     94 if (src.is_cuda and src.requires_grad and not is_compiling()
+     95         and not is_in_onnx_export()):
+     96     warnings.warn(f"The usage of `scatter(reduce='{reduce}')` "
+     97                   f"can be accelerated via the 'torch-scatter'"
+     98                   f" package, but it was not found")
+--> 100 index = broadcast(index, src, dim)
+    101 if not is_in_onnx_export():
+    102     return src.new_zeros(size).scatter_reduce_(
+    103         dim, index, src, reduce=f'a{reduce[-3:]}',
+    104         include_self=False)
+
+File /usr/local/jupyter-env/lib/python3.10/site-packages/torch_geometric/utils/_scatter.py:195, in broadcast(src, ref, dim)
+    193 dim = ref.dim() + dim if dim < 0 else dim
+    194 size = ((1, ) * dim) + (-1, ) + ((1, ) * (ref.dim() - dim - 1))
+--> 195 return src.view(size).expand_as(ref)
+
+RuntimeError: The expanded size of the tensor (8) must match the existing size (3408) at non-singleton dimension 0.  Target sizes: [8, 1].  Tensor sizes: [3408, 1]
