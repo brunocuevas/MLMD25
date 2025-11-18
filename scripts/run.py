@@ -13,6 +13,7 @@ from typing import List
 import yaml
 import os
 import pandas as pd
+import comet_ml
 
 
 @click.command()
@@ -23,12 +24,14 @@ import pandas as pd
 @click.option("--selection_string", "-u", default="name CA")
 @click.option("--radius", "-r", default=4.0)
 @click.option("--batch_size", "-b", default=32)
+@click.option("--save_each", default=5)
+@click.option("--comet_api", default=None)
 @click.argument("DATA")
 @click.argument("TOKKENS")
 @click.argument("OUTPUT")
 def train(
     data: str, tokkens:str, output: str, epochs: int, learning_rate: float, test_fraction: float, test_split_method: str,
-    selection_string: str, radius: float, batch_size: int
+    selection_string: str, radius: float, batch_size: int, save_each, comet_api: str | None
 ) -> None:
     """
     Trains a GCN on the given data. Features such as the
@@ -39,8 +42,17 @@ def train(
     as a list of ´topology´, ´trajectory´, ´label´. 
     
     The data YAML file must be located at the same place that
-    data
+    data.
     """
+    if comet_api is not None:
+        comet_ml.login(api_key=comet_api)
+        exp = comet_ml.start()
+        exp.log_parameters({"batch_size": batch_size})
+        exp.log_parameters({"selection_string": selection_string})
+        exp.log_parameters({"learning_rate": learning_rate})
+        exp.log_parameters({"test_split_method": test_split_method})
+        exp.log_parameters({"name": output})
+
 
     with open(tokkens) as f: 
         tokkens_dict: dict = json.load(f)
@@ -64,7 +76,7 @@ def train(
 
     train = []
     test = []
-
+    index = None
     for trj in trajectories:
         
         if test_split_method == 'random':
@@ -75,16 +87,19 @@ def train(
             raise RuntimeError("unknown split method")
         
         out: List[List[Data]] = mlmdata.split_trajectory(
-            trj=trj, index=index
+            trj=trj, index=index # type: ignore
         )
         train += out[0]
         test += out[1]
 
     
-    gcn = mlmodels.GCN(radius=radius).to(torch.device('cuda:0'))
+    gcn = mlmodels.SimpleGCN(radius=radius).to(torch.device('cuda:0'))
     
     loss = CrossEntropyLoss()
     optimizer = torch.optim.Adam(gcn.parameters(), lr=learning_rate, weight_decay=5e-4)
+    # reduce LR when test loss plateaus
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test, batch_size=batch_size, shuffle=True)
     history = []
@@ -99,7 +114,8 @@ def train(
             l = loss(z, d.label)
             l.backward()
             optimizer.step()
-        statistics['training_loss'] += l.item()
+            statistics['training_loss'] += l.item()
+
         gcn.eval()
         with torch.no_grad():
             statistics['test_accuracy'] = 0.0
@@ -111,14 +127,31 @@ def train(
                 a = ((z.argmax(1) == d.label).sum())
                 statistics['test_accuracy'] += a.item()
                 statistics['test_loss'] += l.item()
+
+        # compute average validation loss for the scheduler (avoid changing statistics['test_loss'] here)
+        n_test_batches = len(test_loader) if len(test_loader) > 0 else 1
+        val_loss_avg = statistics['test_loss'] / n_test_batches
+        scheduler.step(val_loss_avg)
                     
         statistics['test_accuracy'] /= len(test)
-        statistics['test_loss'] /= ((len(test) // batch_size) + 1)
+        # average test loss over batches
+        statistics['test_loss'] /= n_test_batches
+        # record current learning rate
+        statistics['learning_rate'] = optimizer.param_groups[0]['lr']
+        if comet_api is not None:
+            exp.log_metric(name="learning_rate", step=i, value=statistics['learning_rate'])
+            exp.log_metric(name="training_loss", step=i, value=statistics['training_loss'])
+            exp.log_metric(name="test_accuracy", step=i, value=statistics['test_accuracy'])
+            exp.log_metric(name="test_loss", step=i, value=statistics['test_loss'])
 
         # print(f"Epoch {i+1:2d} | Accuracy {statistics['test_accuracy']:.4f}")
         history.append(statistics)
+        if (i + 1) % save_each == 0:
+            base = os.path.splitext(output)[0]
+            fname = f"{base}.{i+1}.pt"
+            torch.save(gcn.state_dict(), fname)
 
-    pd.DataFrame.from_records(history).to_csv(output, sep=';', index=None)
+    pd.DataFrame.from_records(history).to_csv(output + '.csv', sep=';', index=None)
 
 
 if __name__ == "__main__":
