@@ -1,0 +1,43 @@
+# Example input for: mlmd-train TRAJECTORIES/trajectories.example.yaml data/params/tokkens.v01.json run01
+# Paths are relative to this file's directory (see scripts/run.py).
+# Labels: 0 = agonist (FP11, FP18), 1 = antagonist (FP12, FP7)
+trajectories:
+  - topology: "FP11/SYSTEMns.prmtop"
+    trajectory: "FP11/FP11_R0_15ns.nc"
+    label: 0
+  - topology: "FP11/SYSTEMns.prmtop"
+    trajectory: "FP11/FP11_R1_15ns.nc"
+    label: 0
+  - topology: "FP11/SYSTEMns.prmtop"
+    trajectory: "FP11/FP11_R2_15ns.nc"
+    label: 0
+
+  - topology: "FP18/SYSTEMns.prmtop"
+    trajectory: "FP18/FP18_R0_15ns.nc"
+    label: 0
+  - topology: "FP18/SYSTEMns.prmtop"
+    trajectory: "FP18/FP18_R1_15ns.nc"
+    label: 0
+  - topology: "FP18/SYSTEMns.prmtop"
+    trajectory: "FP18/FP18_R2_15ns.nc"
+    label: 0
+
+  - topology: "FP12/SYSTEMns.prmtop"
+    trajectory: "FP12/FP12_R0_15ns.nc"
+    label: 1
+  - topology: "FP12/SYSTEMns.prmtop"
+    trajectory: "FP12/FP12_R1_15ns.nc"
+    label: 1
+  - topology: "FP12/SYSTEMns.prmtop"
+    trajectory: "FP12/FP12_R2_15ns.nc"
+    label: 1
+
+  - topology: "FP7/SYSTEMns.prmtop"
+    trajectory: "FP7/FP7_R0_15ns.nc"
+    label: 1
+  - topology: "FP7/SYSTEMns.prmtop"
+    trajectory: "FP7/FP7_R1_15ns.nc"
+    label: 1
+  - topology: "FP7/SYSTEMns.prmtop"
+    trajectory: "FP7/FP7_R2_15ns.nc"
+    label: 1
