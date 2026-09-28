@@ -2,7 +2,6 @@
 
 Machine learning on molecular-dynamics (MD) trajectories to predict **agonism vs antagonism** for TLR4/MD-2 ligands, using graph neural networks (GCN / GAT).
 
-Some lab notes under `docs/` and `results/` are still in Spanish; this README is in English.
 
 ## Repository map
 
@@ -76,16 +75,9 @@ See `TRAJECTORIES/trajectories.example.yaml` for a ready-made CLI manifest.
 
 ### External full trajectories (what the main notebooks use)
 
-`GCNN_TLR4_MD2.ipynb` and `GAT_MANUAL_VALIDATION.ipynb` reference paths such as:
+The trajectories can be reproduced from our initial structures, found in the project's [Zenodo repository](https://doi.org/10.5281/zenodo.22796892)
 
-- `../FP11_monomer/`
-- `../FP12-TLR4-MDago_monomer/`
-- `../FP18_antagonistbox/`
-- `../FP7/`
-
-Those trees are **outside** this repository. Keep the notebooks at the repo root (their current location) so those `../...` paths stay valid when the notebook working directory is the repo root.
-
-Secondary notebooks under `notebooks/` may also reference local trees such as `../data/md-2025-*`, which are not shipped here.
+### Parameters
 
 Token dictionary used by the library/CLI:
 
@@ -97,48 +89,14 @@ Token dictionary used by the library/CLI:
 2. Place full MD data where the notebook paths expect it (or edit those path cells).
 3. Open the entry-point notebook:
 
-```bash
-jupyter lab GCNN_TLR4_MD2.ipynb
-# or
-jupyter notebook GCNN_TLR4_MD2.ipynb
-```
-
-Start with `GCNN_TLR4_MD2.ipynb` for the full validation story; use `GAT_MANUAL_VALIDATION.ipynb` for the GAT manual checks.
-
-## Train with the CLI
-
-After `pip install -e .`:
-
-```bash
-mlmd-train TRAJECTORIES/trajectories.example.yaml data/params/tokkens.v01.json run01
-```
-
-Useful options (see `scripts/run.py`):
-
-- `--epochs` / `-e` (default 20)
-- `--learning_rate` / `-l`
-- `--test_fraction` / `-t`
-- `--test_split_method` / `-s` (`start_end` or `random`)
-- `--selection_string` / `-u` (default `name CA`)
-- `--radius` / `-r`
-- `--batch_size` / `-b`
-
-The YAML file must sit next to (or above) the trajectory files it names: the trainer resolves topology/trajectory paths relative to the YAML’s directory.
-
-**Note:** `mlmd-train` currently requires a CUDA device (`cuda:0`).
-
 ## Results
 
 Historical validation tables and commentary live in:
 
 - `results/validation_results.md`
 
-## Layout notes
-
-Original publish layout notes: `docs/organization.md`.
-
-Old iterative notebook dumps and LibreOffice exports are under `archive/` and are not the recommended entry point.
 
 ## Contact
 
-Bruno Cuevas — brunocuevaszuviria@gmail.com
+For ML-code queries, bruno.czuviria at upm.es 
+For data and MD-simulations, olmomart@ucm.es 
